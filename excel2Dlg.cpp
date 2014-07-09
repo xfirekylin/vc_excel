@@ -335,7 +335,265 @@ void get_string_by_same_value2(void)
     
     acess_excel2.SaveasXSLFile(acess_excel2.GetOpenFileName());
 }
+typedef unsigned char       BOOLEAN;
 
+typedef unsigned char       uint8;
+typedef unsigned short      uint16;
+typedef unsigned long int   uint32;
+typedef unsigned long int   uint64;
+typedef unsigned int        uint;
+
+typedef signed char         int8;
+typedef signed short        int16;
+typedef signed long int     int32;
+
+typedef enum
+{
+    MMICOM_SEARCH_FIRST_EQUAL,//查找最前面的一个相同的退出
+    MMICOM_SEARCH_LAST_EQUAL,//查找最后的一个相同的退出
+    MMICOM_SEARCH_ANY_EQUAL,//查找任意一个相同的退出
+}MMI_BIN_SEARCH_TYPE_E;
+
+typedef struct _MMI_BIN_SEARCH_INFO_T
+{
+    int32  start_pos;
+	int32  end_pos;
+	void    *compare_base_data;
+	MMI_BIN_SEARCH_TYPE_E search_type;
+}MMI_BIN_SEARCH_INFO_T;
+typedef int (* BIN_COMPARE_FUNC)(uint32 base_index, void *compare_base_data, void *list);
+
+int MMIAPICOM_BinSearch(MMI_BIN_SEARCH_INFO_T *search_info, //[IN]
+                           BIN_COMPARE_FUNC func, //[IN]
+                           uint32 *pos, //[OUT]
+                           void *list//[IN]
+                           )
+{
+	BOOLEAN         is_in_list  = FALSE;    // 记录是否列表中有完全一样的姓名
+	uint32	        ret_pos         = 0;        // 记录找到的合适位置
+    int32          low_pos	    = search_info->start_pos;        // 二分法的前一个位置
+    int32          mid_pos	    = 0;        // 二分法的中间位置
+   	int32          high_pos	= search_info->end_pos;        // 二分法的后一个位置
+	int 	        cmp_result  = 0;  // 两个字符串的比较结果
+
+    if(NULL == search_info || (NULL == func) || (NULL == pos))
+    {
+        return FALSE;
+    } 
+	//func = func_t->func;
+	// 二分法查找
+	//SCI_TRACE_LOW("MMIPB_BinSearch low_pos %d, high_pos %d",low_pos,high_pos);
+	while (low_pos <= high_pos)	// 满足二分法的条件
+	{
+	    // 获得mid_pos
+	    mid_pos = ((low_pos + high_pos) >> 1); 
+        // 将两个字符串进行比较//
+        cmp_result = (*func)(mid_pos,search_info->compare_base_data, list);
+        // 根据比较的结果调整查找的范围
+        if (cmp_result < 0)
+      	{
+          	low_pos = (mid_pos + 1);
+      	}
+      	else if (cmp_result > 0)
+      	{
+			if(mid_pos == 0)
+			{
+				break;
+ 			}
+          	high_pos = mid_pos -1;
+        }
+        else // begin (0 == cmp_result)
+        {
+            // 表示列表中有完全一样的记录。
+            // 记录目前的位置，并标记已经找到这样的记录。
+        	is_in_list  = TRUE;
+        	ret_pos     = mid_pos;
+            
+            // 查找操作
+            // 查找时，需要根据往前找，还是往后找，得到合适的查找范围  
+            if (MMICOM_SEARCH_LAST_EQUAL == search_info->search_type)
+        	{
+                low_pos = (mid_pos + 1);
+            }
+            else if(MMICOM_SEARCH_FIRST_EQUAL == search_info->search_type)
+            {
+            	// 很有可能不是列表中满足条件的最前面一条记录，需要继续寻找
+                if(mid_pos == 0)
+				{
+					break;
+				}
+				high_pos = (mid_pos - 1);	
+            }
+            else
+            {
+                //找到任意一个相等的就退出
+                break;
+            }
+
+        } // end (0 == cmp_result)
+    } // end of while
+
+    if (!is_in_list)
+    {
+        if(cmp_result < 0)
+        {
+            ret_pos = low_pos;
+        }
+        else
+        {
+            ret_pos = mid_pos;
+        }
+    }
+	else
+	{
+		cmp_result = 0;
+	}
+    *pos = ret_pos;
+    
+    return cmp_result;    
+}
+
+int order_table[20000];
+int order_cnt = 0;
+
+ int CompareString(uint32 base_index, void *compare_data, void *list)
+{
+
+    int cur_item = (int)compare_data;
+
+    int base_item = order_table[base_index];
+    CString value2 ;
+    CString value1;
+
+    value1 = acess_excel.GetCellString(base_item, 1);
+
+    return value1.Compare((LPCTSTR)acess_excel.GetCellString(cur_item, 1));
+}
+ 
+void insert_table(int end_pos,int cur_item)
+{
+    uint32 pos = 0;
+	//uint16 i = 0;
+    uint16 need_moved_num = 0;
+    MMI_BIN_SEARCH_INFO_T search_info = {0};
+    
+    search_info.search_type = MMICOM_SEARCH_ANY_EQUAL;
+    
+    search_info.end_pos = end_pos -1;
+    
+    search_info.compare_base_data = (void *)cur_item;
+    
+    MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString, &pos, (void *)1);
+    
+    if(pos != order_cnt)
+    {
+        need_moved_num = order_cnt - pos;
+        memmove(&order_table[pos+1], 
+                &order_table[pos], 
+                need_moved_num * sizeof(order_table[0]));
+    }
+    
+    order_table[pos] = cur_item;
+    order_cnt++;
+}
+
+int CompareString2(uint32 base_index, void *compare_data, void *list)
+{
+
+    int cur_item = (int)compare_data;
+
+    int base_item = order_table[base_index];
+    CString value2 ;
+    CString value1;
+
+    value1 = acess_excel.GetCellString(base_item, 1);
+    value2 = acess_excel2.GetCellString(cur_item, 1);
+
+    return value1.Compare((LPCTSTR)value2);
+}
+
+int find_pos(uint32 *pos,int cur_item)
+{
+    MMI_BIN_SEARCH_INFO_T search_info = {0};
+    
+    search_info.search_type = MMICOM_SEARCH_ANY_EQUAL;
+    
+    search_info.end_pos = order_cnt -1;
+    
+    search_info.compare_base_data = (void *)cur_item;
+    
+    return MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString2, pos, (void *)1);
+}
+
+void get_string_by_id(void)
+{
+    acess_excel.OpenExcelFile("D:\\excel24\\str_table.xls");
+    acess_excel.LoadSheet(1, TRUE);
+    
+    acess_excel2.OpenExcelFile("D:\\excel24\\d.xls");
+    acess_excel2.LoadSheet(1, TRUE);
+
+    int file1_rows = acess_excel.GetRowCount();
+    int file2_rows = acess_excel2.GetRowCount();
+    
+    int file1_cur_row = 2;
+    int file2_cur_row = 2;
+
+    CString value2 ;
+    CString value1;
+
+    
+    value2 = acess_excel2.GetCellString(file2_cur_row, 1);
+
+    
+    CStdioFile myFile;
+
+    CFileException fileException;
+	int i = 1;
+    if(myFile.Open("n.txt",CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
+
+    {
+
+
+
+    }
+
+    memset(order_table, 0 ,sizeof(order_table));
+
+    order_table[0] = 2;
+    order_cnt = 1;
+    
+    for(i=3;i<=file1_rows;i++)
+    {
+        insert_table(order_cnt, i);
+    }
+    
+    for (;file2_cur_row<=file2_rows;file2_cur_row++)
+    {
+        uint32 pos=0;
+        
+        if (0 == find_pos(&pos, file2_cur_row))
+        {
+            
+            myFile.WriteString(acess_excel.GetCellString(order_table[pos], 5));
+            
+            myFile.WriteString("\n");
+        }
+        else 
+        {
+            myFile.WriteString("\n");
+        }
+    }
+
+    
+    acess_excel2.SaveasXSLFile(acess_excel2.GetOpenFileName());
+}
+
+UINT ThreadFun(LPVOID pParam)
+{  //线程要调用的函数
+    
+    return 0;
+}
 
 void CExcel2Dlg::OnOK() 
 {
@@ -361,8 +619,9 @@ void CExcel2Dlg::OnOK()
 
 	}
 #else
-	
-    get_string_by_same_value2();
+    ::AfxBeginThread(ThreadFun, NULL); 
+    get_string_by_id();
+
 #endif
 
 
