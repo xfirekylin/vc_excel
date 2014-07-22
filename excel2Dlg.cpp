@@ -455,6 +455,16 @@ int MMIAPICOM_BinSearch(MMI_BIN_SEARCH_INFO_T *search_info, //[IN]
 
 int order_table[20000];
 int order_cnt = 0;
+long excel1_compare_column = 1;
+long excel2_compare_column = 1;
+long file1_save_txt_cols[10] = {0};
+long file2_save_txt_cols[10] = {0};
+long file1_save_excel_cols[10] = {0};
+long file2_save_excel_cols[10] = {0};
+long file1_txt_cols_cnt = 0;
+long file2_txt_cols_cnt = 0;
+long file1_excel_cols_cnt = 0;
+long file2_excel_cols_cnt = 0;
 
  int CompareString(uint32 base_index, void *compare_data, void *list)
 {
@@ -465,9 +475,9 @@ int order_cnt = 0;
     CString value2 ;
     CString value1;
 
-    value1 = acess_excel.GetCellString(base_item, 1);
+    value1 = acess_excel.GetCellString(base_item, excel1_compare_column);
 
-    return value1.Compare((LPCTSTR)acess_excel.GetCellString(cur_item, 1));
+    return value1.Compare((LPCTSTR)acess_excel.GetCellString(cur_item, excel1_compare_column));
 }
  
 void insert_table(int end_pos,int cur_item)
@@ -511,8 +521,8 @@ int CompareString2(uint32 base_index, void *compare_data, void *list)
     CString value2 ;
     CString value1;
 
-    value1 = acess_excel.GetCellString(base_item, 1);
-    value2 = acess_excel2.GetCellString(cur_item, 1);
+    value1 = acess_excel.GetCellString(base_item, excel1_compare_column);
+    value2 = acess_excel2.GetCellString(cur_item, excel2_compare_column);
 
     return value1.Compare((LPCTSTR)value2);
 }
@@ -558,158 +568,187 @@ int find_pos2(uint32 *pos,int cur_item)
     return MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString2, pos, (void *)1);
 }
 
+void find_rows_in_file2_same_with_file1( char *filename1, 
+												char *filename2, 
+												char *filename3,
+												char *save_file,
+												long file1_sheet_index,
+												long file2_sheet_index,
+												long file1_start_row, 
+												long file2_start_row, 
+												BOOLEAN is_only_mark,
+												BOOLEAN is_write_file3,
+												char *col_flag)
+{
+	ASSERT(NULL != filename1);
+    acess_excel.OpenExcelFile(filename1);
+    acess_excel.LoadSheet(file1_sheet_index, TRUE);
+    
+	ASSERT(NULL != filename2);
+    acess_excel2.OpenExcelFile(filename2);
+    acess_excel2.LoadSheet(file2_sheet_index, TRUE);
+
+	if (NULL != filename3)
+	{
+	    acess_excel3.OpenExcelFile(filename3);
+	    acess_excel3.LoadSheet(1, TRUE);
+	}
+
+    int file1_rows = acess_excel.GetRowCount();
+    int file2_rows = acess_excel2.GetRowCount();
+    
+    long file1_cur_row = file1_start_row;
+    long file2_cur_row = file2_start_row;
+    long file3_cur_row = 1;
+
+    CString value2 ;
+    CString value1;
+
+    
+    value2 = acess_excel2.GetCellString(file2_cur_row, excel2_compare_column);
+
+    
+    CStdioFile myFile;
+
+    CFileException fileException;
+	uint32 i = 1;
+    if(myFile.Open(save_file,CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
+    {
+
+
+
+    }
+
+    memset(order_table, 0 ,sizeof(order_table));
+
+    order_table[0] = file1_cur_row;
+    order_cnt = 1;
+    
+    for(i=3;i<=file1_rows;i++)
+    {
+        insert_table(order_cnt, i);
+    }
+
+	if (is_only_mark)
+	{
+	    for (;file2_cur_row<=file2_rows;file2_cur_row++)
+	    {
+	        uint32 pos=0;
+	        
+	        if (0 == find_pos2(&pos, file2_cur_row))
+	        {
+	            //acess_excel2.SetCellString(file2_cur_row, 1, "xlh__xlh");
+	            myFile.WriteString("match");
+	        }
+			else
+			{
+	            myFile.WriteString("nomatch");
+			}
+			myFile.WriteString("\n");
+	    }
+	}
+	else 
+	{
+	    for (;file2_cur_row<=file2_rows;file2_cur_row++)
+	    {
+	        uint32 pos=0;
+	        uint32 pos2 = 0;
+	        
+	        if (0 == find_pos(&pos, &pos2,file2_cur_row))
+	        {
+	            for (i=pos2;i<=pos;i++)
+	            {
+	            	int write_col = 0;
+
+					for (;write_col<file1_txt_cols_cnt;write_col++)
+					{
+						myFile.WriteString(acess_excel.GetCellString(order_table[i], file1_save_txt_cols[write_col]));
+						myFile.WriteString(col_flag);
+					}
+					
+					for (write_col=0;write_col<file2_txt_cols_cnt;write_col++)
+					{
+						myFile.WriteString(acess_excel2.GetCellString(file2_cur_row, file2_save_txt_cols[write_col]));
+						myFile.WriteString(col_flag);
+					}
+					
+					myFile.WriteString("\n");
+					
+	            	if (is_write_file3)
+	            	{
+						int file3_col = 1;
+						
+						for (write_col=0;write_col<file1_excel_cols_cnt;write_col++)
+						{
+		                	acess_excel3.SetCellValue(file3_cur_row, file3_col, acess_excel.GetCellValue(order_table[i], file1_save_excel_cols[write_col]));
+							file3_col++;
+						}
+						
+						for (write_col=0;write_col<file2_excel_cols_cnt;write_col++)
+						{
+		                	acess_excel3.SetCellValue(file3_cur_row, file3_col, acess_excel2.GetCellValue(file2_cur_row, file2_save_excel_cols[write_col]));
+							file3_col++;
+						}
+						
+	                	file3_cur_row++;
+	            	}
+
+	            }
+	        }
+			
+	    }
+		
+	}
+
+	if (is_write_file3)
+	{
+    	acess_excel3.SaveasXSLFile(acess_excel3.GetOpenFileName());
+	}
+}
+
+void get_same_string_by_id(void)
+{
+	excel1_compare_column = 1;
+	excel2_compare_column = 1;
+	#if 0
+	file1_save_txt_cols[10] = {0};
+	file2_save_txt_cols[10] = {0};
+	file1_save_excel_cols[10] = {0};
+	file2_save_excel_cols[10] = {0};
+	#endif
+	file1_txt_cols_cnt = 0;
+	file2_txt_cols_cnt = 0;
+	file1_excel_cols_cnt = 0;
+	file2_excel_cols_cnt = 0;
+
+	find_rows_in_file2_same_with_file1("D:\\excel24\\m0.xls","D:\\excel24\\m1.xls",NULL,"result.txt", 1,1,2, 2,TRUE,FALSE,NULL);
+}
 
 void get_string_by_id(void)
 {
-    acess_excel.OpenExcelFile("D:\\excel24\\m0.xls");
-    acess_excel.LoadSheet(1, TRUE);
-    
-    acess_excel2.OpenExcelFile("D:\\excel24\\m1.xls");
-    acess_excel2.LoadSheet(1, TRUE);
+	excel1_compare_column = 1;
+	excel2_compare_column = 1;
+	excel1_compare_column = 1;
+	excel2_compare_column = 1;
+	#if 0
+	file1_save_txt_cols[10] = {0};
+	file2_save_txt_cols[10] = {0};
+	file1_save_excel_cols[10] = {0};
+	file2_save_excel_cols[10] = {0};
+	#endif
+	file1_txt_cols_cnt = 4;
+	file2_txt_cols_cnt = 0;
+	file1_excel_cols_cnt = 0;
+	file2_excel_cols_cnt = 0;
+	
+	file1_save_txt_cols[0] = 1;
+	file1_save_txt_cols[1] = 2;
+	file1_save_txt_cols[2] = 3;
+	file1_save_txt_cols[3] = 4;
 
-    acess_excel3.OpenExcelFile("D:\\excel24\\mn.xls");
-    acess_excel3.LoadSheet(1, TRUE);
-
-    int file1_rows = acess_excel.GetRowCount();
-    int file2_rows = acess_excel2.GetRowCount();
-    
-    int file1_cur_row = 2;
-    int file2_cur_row = 2;
-
-    int file3_cur_row = 1;
-
-    CString value2 ;
-    CString value1;
-
-    
-    value2 = acess_excel2.GetCellString(file2_cur_row, 1);
-
-    
-    CStdioFile myFile;
-
-    CFileException fileException;
-	uint32 i = 1;
-    if(myFile.Open("n.txt",CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
-
-    {
-
-
-
-    }
-
-    memset(order_table, 0 ,sizeof(order_table));
-
-    order_table[0] = 2;
-    order_cnt = 1;
-    
-    for(i=3;i<=file1_rows;i++)
-    {
-        insert_table(order_cnt, i);
-    }
-
-    return;
-    
-    for (;file2_cur_row<=file2_rows;file2_cur_row++)
-    {
-        uint32 pos=0;
-        uint32 pos2 = 0;
-        
-        if (0 == find_pos2(&pos, file2_cur_row))
-        {
-        #if 1
-            acess_excel2.SetCellString(file2_cur_row, 1, "xlh__xlh");
-        #endif
-            
-        #if 0
-            myFile.WriteString(acess_excel.GetCellString(order_table[pos], 1));
-            
-            myFile.WriteString("\n");
-        #endif
-        }
-    }
-
-    acess_excel2.SaveasXSLFile(acess_excel2.GetOpenFileName());
+	find_rows_in_file2_same_with_file1("D:\\excel24\\m0.xls","D:\\excel24\\m1.xls",NULL,"result.txt", 1,1,2, 2,FALSE,FALSE,">");
 }
 
-void get_string_by_id2(void)
-{
-    acess_excel.OpenExcelFile("D:\\excel24\\m3.xls");
-    acess_excel.LoadSheet(1, TRUE);
-    
-    acess_excel2.OpenExcelFile("D:\\excel24\\m2.xls");
-    acess_excel2.LoadSheet(1, TRUE);
-
-    acess_excel3.OpenExcelFile("D:\\excel24\\mn.xls");
-    acess_excel3.LoadSheet(1, TRUE);
-
-    int file1_rows = acess_excel.GetRowCount();
-    int file2_rows = acess_excel2.GetRowCount();
-    
-    int file1_cur_row = 2;
-    int file2_cur_row = 2;
-
-    int file3_cur_row = 1;
-
-    CString value2 ;
-    CString value1;
-
-    
-    value2 = acess_excel2.GetCellString(file2_cur_row, 1);
-
-    
-    CStdioFile myFile;
-
-    CFileException fileException;
-	uint32 i = 1;
-    if(myFile.Open("n.txt",CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
-
-    {
-
-
-
-    }
-
-    memset(order_table, 0 ,sizeof(order_table));
-
-    order_table[0] = 2;
-    order_cnt = 1;
-    
-    for(i=3;i<=file1_rows;i++)
-    {
-        insert_table(order_cnt, i);
-    }
-    
-    for (;file2_cur_row<=file2_rows;file2_cur_row++)
-    {
-        uint32 pos=0;
-        uint32 pos2 = 0;
-        
-        if (0 == find_pos(&pos, &pos2,file2_cur_row))
-        {
-            for (i=pos2;i<=pos;i++)
-            {
-                //acess_excel3.SetCellValue(file3_cur_row, 1, acess_excel2.GetCellValue(file2_cur_row, 2));
-                file3_cur_row++;
-                
-                myFile.WriteString(acess_excel.GetCellString(order_table[i], 1));
-                myFile.WriteString(">");
-                myFile.WriteString(acess_excel.GetCellString(order_table[i], 2));  
-                myFile.WriteString(">");
-                myFile.WriteString(acess_excel.GetCellString(order_table[i], 3));
-                myFile.WriteString(">");
-                myFile.WriteString(acess_excel.GetCellString(order_table[i], 4));
-            
-                myFile.WriteString("\n");
-            }
-        }
-        else 
-        {
-            myFile.WriteString("\n");
-        }
-    }
-
-    acess_excel3.SaveasXSLFile(acess_excel3.GetOpenFileName());
-}
 
 UINT ThreadFun(LPVOID pParam)
 {  //线程要调用的函数
