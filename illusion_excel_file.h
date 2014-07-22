@@ -28,8 +28,7 @@ protected:
     _Worksheet    excel_work_sheet_; 
     ///当前的操作区域
     Range        excel_current_range_; 
-
-
+    
     ///是否已经预加载了某个sheet的数据
     BOOL          already_preload_;
     ///Create the SAFEARRAY from the VARIANT ret.
@@ -53,6 +52,7 @@ public:
     CString GetCellString(long iRow, long iColumn);
 
     
+    BOOLEAN DelLine(long irow);
     ///得到一个CELL的值
     COleVariant GetCellValue(long iRow, long iColumn);
     

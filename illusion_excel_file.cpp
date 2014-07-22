@@ -96,7 +96,7 @@ void IllusionExcelFile::CloseExcelFile(BOOL if_save)
         else
         {
             //
-            excel_work_book_.Close(COleVariant(short(FALSE)),COleVariant(open_excel_file_),covOptional);
+           // excel_work_book_.Close(COleVariant(short(FALSE)),COleVariant(open_excel_file_),covOptional);
             excel_books_.Close();
         }
 
@@ -170,7 +170,7 @@ BOOL IllusionExcelFile::LoadSheet(long table_index,BOOL pre_load)
         PreLoadSheet();
         already_preload_ = TRUE;
     }
-
+    
     return TRUE;
 }
 
@@ -312,6 +312,23 @@ CString IllusionExcelFile::GetCellString(long irow, long icolumn)
     }  
 
     return str;
+}
+
+BOOLEAN IllusionExcelFile::DelLine(long irow)
+{
+   
+    COleVariant vResult ;
+    //COleVariant shift(FALSE) ;
+    
+    Range range;
+
+    //shift.__VARIANT_NAME_1.__VARIANT_NAME_2.vt = VT_DISPATCH;
+    range.AttachDispatch(excel_current_range_.GetItem (COleVariant((long)irow),COleVariant((long)65535)).pdispVal, true);
+    range.Delete(COleVariant(short(FALSE)));
+
+    range.ReleaseDispatch();
+    
+    return 0;
 }
 
 double IllusionExcelFile::GetCellDouble(long irow, long icolumn)

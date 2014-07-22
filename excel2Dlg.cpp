@@ -483,7 +483,12 @@ void insert_table(int end_pos,int cur_item)
     
     search_info.compare_base_data = (void *)cur_item;
     
-    MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString, &pos, (void *)1);
+    if (0 == MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString, &pos, (void *)1))
+    {
+        int ijjj=0;
+        ijjj++;
+        TRACE("LINE=%d\n",cur_item);
+    }
     
     if(pos != order_cnt)
     {
@@ -512,7 +517,35 @@ int CompareString2(uint32 base_index, void *compare_data, void *list)
     return value1.Compare((LPCTSTR)value2);
 }
 
-int find_pos(uint32 *pos,int cur_item)
+int find_pos(uint32 *pos,uint32 *pos2,int cur_item)
+{
+    int result = 1;
+    MMI_BIN_SEARCH_INFO_T search_info = {0};
+    
+    search_info.search_type = MMICOM_SEARCH_LAST_EQUAL;
+    
+    search_info.end_pos = order_cnt -1;
+    
+    search_info.compare_base_data = (void *)cur_item;
+    
+    if (0==MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString2, pos, (void *)1))
+    {
+        
+        search_info.search_type = MMICOM_SEARCH_FIRST_EQUAL;
+        
+        search_info.end_pos = *pos;
+        
+        search_info.compare_base_data = (void *)cur_item;
+        
+        MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString2, pos2, (void *)1);
+
+        result = 0;
+    }
+
+    return result;
+}
+
+int find_pos2(uint32 *pos,int cur_item)
 {
     MMI_BIN_SEARCH_INFO_T search_info = {0};
     
@@ -525,19 +558,25 @@ int find_pos(uint32 *pos,int cur_item)
     return MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString2, pos, (void *)1);
 }
 
+
 void get_string_by_id(void)
 {
-    acess_excel.OpenExcelFile("D:\\excel24\\str_table.xls");
+    acess_excel.OpenExcelFile("D:\\excel24\\m0.xls");
     acess_excel.LoadSheet(1, TRUE);
     
-    acess_excel2.OpenExcelFile("D:\\excel24\\d.xls");
+    acess_excel2.OpenExcelFile("D:\\excel24\\m1.xls");
     acess_excel2.LoadSheet(1, TRUE);
+
+    acess_excel3.OpenExcelFile("D:\\excel24\\mn.xls");
+    acess_excel3.LoadSheet(1, TRUE);
 
     int file1_rows = acess_excel.GetRowCount();
     int file2_rows = acess_excel2.GetRowCount();
     
     int file1_cur_row = 2;
     int file2_cur_row = 2;
+
+    int file3_cur_row = 1;
 
     CString value2 ;
     CString value1;
@@ -549,7 +588,79 @@ void get_string_by_id(void)
     CStdioFile myFile;
 
     CFileException fileException;
-	int i = 1;
+	uint32 i = 1;
+    if(myFile.Open("n.txt",CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
+
+    {
+
+
+
+    }
+
+    memset(order_table, 0 ,sizeof(order_table));
+
+    order_table[0] = 2;
+    order_cnt = 1;
+    
+    for(i=3;i<=file1_rows;i++)
+    {
+        insert_table(order_cnt, i);
+    }
+
+    return;
+    
+    for (;file2_cur_row<=file2_rows;file2_cur_row++)
+    {
+        uint32 pos=0;
+        uint32 pos2 = 0;
+        
+        if (0 == find_pos2(&pos, file2_cur_row))
+        {
+        #if 1
+            acess_excel2.SetCellString(file2_cur_row, 1, "xlh__xlh");
+        #endif
+            
+        #if 0
+            myFile.WriteString(acess_excel.GetCellString(order_table[pos], 1));
+            
+            myFile.WriteString("\n");
+        #endif
+        }
+    }
+
+    acess_excel2.SaveasXSLFile(acess_excel2.GetOpenFileName());
+}
+
+void get_string_by_id2(void)
+{
+    acess_excel.OpenExcelFile("D:\\excel24\\m3.xls");
+    acess_excel.LoadSheet(1, TRUE);
+    
+    acess_excel2.OpenExcelFile("D:\\excel24\\m2.xls");
+    acess_excel2.LoadSheet(1, TRUE);
+
+    acess_excel3.OpenExcelFile("D:\\excel24\\mn.xls");
+    acess_excel3.LoadSheet(1, TRUE);
+
+    int file1_rows = acess_excel.GetRowCount();
+    int file2_rows = acess_excel2.GetRowCount();
+    
+    int file1_cur_row = 2;
+    int file2_cur_row = 2;
+
+    int file3_cur_row = 1;
+
+    CString value2 ;
+    CString value1;
+
+    
+    value2 = acess_excel2.GetCellString(file2_cur_row, 1);
+
+    
+    CStdioFile myFile;
+
+    CFileException fileException;
+	uint32 i = 1;
     if(myFile.Open("n.txt",CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
 
     {
@@ -571,13 +682,25 @@ void get_string_by_id(void)
     for (;file2_cur_row<=file2_rows;file2_cur_row++)
     {
         uint32 pos=0;
+        uint32 pos2 = 0;
         
-        if (0 == find_pos(&pos, file2_cur_row))
+        if (0 == find_pos(&pos, &pos2,file2_cur_row))
         {
+            for (i=pos2;i<=pos;i++)
+            {
+                //acess_excel3.SetCellValue(file3_cur_row, 1, acess_excel2.GetCellValue(file2_cur_row, 2));
+                file3_cur_row++;
+                
+                myFile.WriteString(acess_excel.GetCellString(order_table[i], 1));
+                myFile.WriteString(">");
+                myFile.WriteString(acess_excel.GetCellString(order_table[i], 2));  
+                myFile.WriteString(">");
+                myFile.WriteString(acess_excel.GetCellString(order_table[i], 3));
+                myFile.WriteString(">");
+                myFile.WriteString(acess_excel.GetCellString(order_table[i], 4));
             
-            myFile.WriteString(acess_excel.GetCellString(order_table[pos], 5));
-            
-            myFile.WriteString("\n");
+                myFile.WriteString("\n");
+            }
         }
         else 
         {
@@ -585,8 +708,7 @@ void get_string_by_id(void)
         }
     }
 
-    
-    acess_excel2.SaveasXSLFile(acess_excel2.GetOpenFileName());
+    acess_excel3.SaveasXSLFile(acess_excel3.GetOpenFileName());
 }
 
 UINT ThreadFun(LPVOID pParam)
@@ -619,7 +741,7 @@ void CExcel2Dlg::OnOK()
 
 	}
 #else
-    ::AfxBeginThread(ThreadFun, NULL); 
+    //::AfxBeginThread(ThreadFun, NULL); 
     get_string_by_id();
 
 #endif
