@@ -50,8 +50,8 @@ public:
 
     ///得到一个CELL的String
     CString GetCellString(long iRow, long iColumn);
-
-    
+    BOOLEAN GetCell_is_string(long irow, long icolumn);
+    short* GetCellunicode(long irow, long icolumn);
     BOOLEAN DelLine(long irow);
     ///得到一个CELL的值
     COleVariant GetCellValue(long iRow, long iColumn);

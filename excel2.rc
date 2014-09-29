@@ -84,15 +84,73 @@ BEGIN
     DEFPUSHBUTTON   "确定",IDOK,178,7,50,14,WS_GROUP
 END
 
-IDD_EXCEL2_DIALOG DIALOGEX 0, 0, 320, 200
+IDD_EXCEL2_DIALOG DIALOGEX 0, 0, 341, 482
 STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
-CAPTION "excel2"
+CAPTION "excel工具"
 FONT 9, "宋体"
 BEGIN
-    DEFPUSHBUTTON   "执行",IDOK,42,134,70,32
-    PUSHBUTTON      "退出",IDCANCEL,203,133,84,32
-    LTEXT           "TODO: 在这里设置对话控制。",IDC_STATIC,50,90,200,8
+    CONTROL         "Tab2",IDC_TAB1,"SysTabControl32",0x0,19,7,302,468
+END
+
+IDD_PARA1 DIALOG DISCARDABLE  0, 0, 212, 199
+STYLE WS_CHILD
+FONT 10, "System"
+BEGIN
+    DEFPUSHBUTTON   "查找",IDOK,81,156,50,14
+    LTEXT           "excel文件：",IDC_STATIC,19,21,44,12
+    EDITTEXT        IDC_EDIT1,84,21,103,12,ES_AUTOHSCROLL
+    LTEXT           "excel页(>=1):",IDC_STATIC,19,48,56,15
+    EDITTEXT        IDC_EDIT2,84,48,103,12,ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "起始行:",IDC_STATIC,19,68,48,16
+    LTEXT           "查找列(>=1):",IDC_STATIC,18,94,43,11
+    EDITTEXT        IDC_EDIT3,84,68,103,12,ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT4,84,93,103,12,ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "输出文件：",IDC_STATIC,20,114,53,12
+    EDITTEXT        IDC_EDIT5,84,114,103,12,ES_AUTOHSCROLL
+    LTEXT           "输出列(逗号隔开)：",IDC_STATIC,13,136,68,13
+    EDITTEXT        IDC_EDIT6,84,136,103,12,ES_AUTOHSCROLL
+END
+
+IDD_PARA2 DIALOG DISCARDABLE  0, 0, 218, 347
+STYLE WS_CHILD
+FONT 10, "System"
+BEGIN
+    EDITTEXT        IDC_EDIT1,88,15,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT2,88,33,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT3,88,51,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT4,88,69,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT5,88,87,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT6,88,105,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT7,88,123,108,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT8,87,141,109,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT13,87,157,109,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT14,87,177,109,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT9,110,210,86,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT10,110,227,86,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT11,110,256,86,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT12,110,276,86,12,ES_AUTOHSCROLL
+    CONTROL         "是否要输出excel",IDC_CHECK1,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,16,293,82,12
+    CONTROL         "是否只标志相同行",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,114,293,82,12
+    DEFPUSHBUTTON   "查找",IDOK,84,314,50,14
+    LTEXT           "excel文件1：",IDC_STATIC,15,14,56,16
+    LTEXT           "输出excel：",IDC_STATIC,15,50,56,16
+    LTEXT           "excel文件2：",IDC_STATIC,15,32,56,16
+    LTEXT           "文件1比较页：",IDC_STATIC,16,86,56,16
+    LTEXT           "文件2比较页：",IDC_STATIC,16,104,56,16
+    LTEXT           "输入文件：",IDC_STATIC,16,68,56,16
+    LTEXT           "文件1起始行：",IDC_STATIC,16,122,56,16
+    LTEXT           "文件2起始行：",IDC_STATIC,16,140,56,16
+    LTEXT           "文件输出列(逗号隔开)：",IDC_STATIC,16,197,123,11
+    LTEXT           "文件1：",IDC_STATIC,40,210,29,11
+    LTEXT           "文件2：",IDC_STATIC,40,227,29,12
+    LTEXT           "excel输出列(逗号隔开):",IDC_STATIC,16,244,96,12
+    LTEXT           "文件1：",IDC_STATIC,40,256,29,13
+    LTEXT           "文件2：",IDC_STATIC,40,276,29,13
+    LTEXT           "文件1比较列：",IDC_STATIC,16,158,56,16
+    LTEXT           "文件2比较列：",IDC_STATIC,16,177,56,16
 END
 
 
@@ -117,17 +175,20 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "080404B0"
+        BLOCK "080404b0"
         BEGIN
+            VALUE "Comments", "\0"
             VALUE "CompanyName", "\0"
             VALUE "FileDescription", "excel2 Microsoft 基础类应用程序\0"
             VALUE "FileVersion", "1, 0, 0, 1\0"
-            VALUE "InternalName", "excel2\0"
+            VALUE "InternalName", "excel工具\0"
             VALUE "LegalCopyright", "版权所有 (C) 2014\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "excel2.EXE\0"
-            VALUE "ProductName", "excel2 应用程序\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "excel工具 应用程序\0"
             VALUE "ProductVersion", "1, 0, 0, 1\0"
+            VALUE "SpecialBuild", "\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -158,9 +219,24 @@ BEGIN
     IDD_EXCEL2_DIALOG, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 313
         TOPMARGIN, 7
-        BOTTOMMARGIN, 193
+        BOTTOMMARGIN, 475
+    END
+
+    IDD_PARA1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 205
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 192
+    END
+
+    IDD_PARA2, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 211
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 340
     END
 END
 #endif    // APSTUDIO_INVOKED

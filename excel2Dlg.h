@@ -8,6 +8,8 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include "Para1.h"
+#include "Para2.h"
 /////////////////////////////////////////////////////////////////////////////
 // CExcel2Dlg dialog
 
@@ -20,12 +22,12 @@ public:
 // Dialog Data
 	//{{AFX_DATA(CExcel2Dlg)
 	enum { IDD = IDD_EXCEL2_DIALOG };
-		// NOTE: the ClassWizard will add data members here
+	CTabCtrl	m_tab;
 	//}}AFX_DATA
 
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(CExcel2Dlg)
-
+	//}}AFX_VIRTUAL
     bool OpenExcelBook(CString filename);
     void NewExcelBook();
     void OpenExcelApp(void);
@@ -42,11 +44,15 @@ public:
         
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
-	//}}AFX_VIRTUAL
+
 
 // Implementation
 protected:
 	HICON m_hIcon;
+	CPara2 m_para2;
+	
+	CPara1 m_para1;
+	
 
 	// Generated message map functions
 	//{{AFX_MSG(CExcel2Dlg)
@@ -56,6 +62,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	virtual void OnOK();
 	virtual void OnCancel();
+	afx_msg void OnSelchangeTab1(NMHDR* pNMHDR, LRESULT* pResult);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 };

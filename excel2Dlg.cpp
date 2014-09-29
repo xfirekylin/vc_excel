@@ -4,6 +4,8 @@
 #include "stdafx.h"
 #include "excel2.h"
 #include "excel2Dlg.h"
+#include "Para1.h"
+#include "Para2.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -97,7 +99,7 @@ void CExcel2Dlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(CExcel2Dlg)
-		// NOTE: the ClassWizard will add DDX and DDV calls here
+	DDX_Control(pDX, IDC_TAB1, m_tab);
 	//}}AFX_DATA_MAP
 }
 
@@ -106,6 +108,7 @@ BEGIN_MESSAGE_MAP(CExcel2Dlg, CDialog)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB1, OnSelchangeTab1)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -160,6 +163,35 @@ BOOL CExcel2Dlg::OnInitDialog()
 	acess_excel.InitExcel();
 
 #endif
+    CFont m_NewFont;
+    m_NewFont.CreateFont (14, 0, 0, 0, 800, TRUE, 0, 0, 1, 0, 0, 0, 0, _T("Arial") );
+
+    //m_tab.SetFont (&m_NewFont);
+
+	m_tab.InsertItem(0, "没翻译字符");
+	m_tab.InsertItem(1, "相同字符");
+
+	m_para1.Create(IDD_PARA1,GetDlgItem(IDC_TAB1));
+    m_para2.Create(IDD_PARA2,GetDlgItem(IDC_TAB1));
+	
+    //获得IDC_TABTEST客户区大小
+	
+    CRect rs;
+    m_tab.GetClientRect(&rs);
+    //调整子对话框在父窗口中的位置
+    rs.top += 20;
+    rs.bottom -= 20;
+    rs.left += 1;
+    rs.right -= 2;
+    //设置子对话框尺寸并移动到指定位置
+    m_para1.MoveWindow(&rs);
+    m_para2.MoveWindow(&rs);
+    //分别设置隐藏和显示
+    m_para1.ShowWindow(1);
+    m_para2.ShowWindow(0);
+	
+    //设置默认的选项卡
+    m_tab.SetCurSel(0);
 	
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -480,7 +512,7 @@ long file2_excel_cols_cnt = 0;
     return value1.Compare((LPCTSTR)acess_excel.GetCellString(cur_item, excel1_compare_column));
 }
  
-void insert_table(int end_pos,int cur_item)
+void insert_table(int end_pos,int cur_item, CStdioFile &myFile, BOOLEAN is_mark,BOOLEAN no_same)
 {
     uint32 pos = 0;
 	//uint16 i = 0;
@@ -495,9 +527,19 @@ void insert_table(int end_pos,int cur_item)
     
     if (0 == MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString, &pos, (void *)1))
     {
-        int ijjj=0;
-        ijjj++;
-        TRACE("LINE=%d\n",cur_item);
+        if (is_mark)
+        {
+            myFile.WriteString("match\n");
+        }
+
+        if (no_same)
+        {
+            return;
+        }
+    }
+    else if (is_mark)
+    {
+        myFile.WriteString("nomatch\n");
     }
     
     if(pos != order_cnt)
@@ -568,10 +610,23 @@ int find_pos2(uint32 *pos,int cur_item)
     return MMIAPICOM_BinSearch(&search_info, (BIN_COMPARE_FUNC)CompareString2, pos, (void *)1);
 }
 
-void find_rows_in_file2_same_with_file1( char *filename1, 
-												char *filename2, 
-												char *filename3,
-												char *save_file,
+void write_ascii_to_unicode_file(FILE *fp, char *buf)
+{
+    int len = strlen(buf);
+
+    int i = 0;
+
+    for (i=0;i<len;i++)
+    {
+        fputc(buf[i], fp);
+        fputc(0,fp);
+    }
+}
+
+void find_rows_in_file2_same_with_file1( const char *filename1, 
+												const char *filename2, 
+												const char *filename3,
+												const char *save_file,
 												long file1_sheet_index,
 												long file2_sheet_index,
 												long file1_start_row, 
@@ -581,42 +636,60 @@ void find_rows_in_file2_same_with_file1( char *filename1,
 												char *col_flag)
 {
 	ASSERT(NULL != filename1);
+    
+    acess_excel.ReleaseExcel();
+	acess_excel.InitExcel();
+    
     acess_excel.OpenExcelFile(filename1);
     acess_excel.LoadSheet(file1_sheet_index, TRUE);
     
-	ASSERT(NULL != filename2);
-    acess_excel2.OpenExcelFile(filename2);
-    acess_excel2.LoadSheet(file2_sheet_index, TRUE);
+	if (NULL != filename2)
+	{
+        acess_excel2.OpenExcelFile(filename2);
+        acess_excel2.LoadSheet(file2_sheet_index, TRUE);
+	}
 
-	if (NULL != filename3)
+	if (is_write_file3 && NULL != filename3)
 	{
 	    acess_excel3.OpenExcelFile(filename3);
 	    acess_excel3.LoadSheet(1, TRUE);
 	}
 
     int file1_rows = acess_excel.GetRowCount();
-    int file2_rows = acess_excel2.GetRowCount();
+    int file2_rows = -1;
     
     long file1_cur_row = file1_start_row;
     long file2_cur_row = file2_start_row;
     long file3_cur_row = 1;
 
-    CString value2 ;
-    CString value1;
+	if (NULL != filename2)
+	{
+        file2_rows = acess_excel2.GetRowCount();
+	}
 
-    
-    value2 = acess_excel2.GetCellString(file2_cur_row, excel2_compare_column);
-
-    
+    FILE *fp2;
     CStdioFile myFile;
+    uint32 i = 1;
+    
+	if (is_only_mark)
+	{
 
-    CFileException fileException;
-	uint32 i = 1;
-    if(myFile.Open(save_file,CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
+        CFileException fileException;
+        if(myFile.Open(save_file,CFile::typeText|CFile::modeCreate|CFile::modeReadWrite),&fileException)
+        {
+
+        }
+	}
+    else
     {
-
-
-
+        if (NULL == (fp2=fopen(save_file,"wb")))
+        {
+            printf("open file error!");
+            return;
+        }
+        
+        fputc(0xff,fp2);
+        fputc(0xfe,fp2);
     }
 
     memset(order_table, 0 ,sizeof(order_table));
@@ -626,7 +699,14 @@ void find_rows_in_file2_same_with_file1( char *filename1,
     
     for(i=3;i<=file1_rows;i++)
     {
-        insert_table(order_cnt, i);
+        if (NULL != filename2)
+        {
+            insert_table(order_cnt, i, myFile, FALSE, FALSE);
+        }
+        else
+        {
+            insert_table(order_cnt, i, myFile, TRUE, TRUE);
+        }
     }
 
 	if (is_only_mark)
@@ -656,10 +736,12 @@ void find_rows_in_file2_same_with_file1( char *filename1,
 	        
 	        if (0 == find_pos(&pos, &pos2,file2_cur_row))
 	        {
+                TRACE("POS=%d,pos2=%d\n",pos,pos2);
 	            for (i=pos2;i<=pos;i++)
 	            {
 	            	int write_col = 0;
 
+            	#if 0
 					for (;write_col<file1_txt_cols_cnt;write_col++)
 					{
 						myFile.WriteString(acess_excel.GetCellString(order_table[i], file1_save_txt_cols[write_col]));
@@ -671,9 +753,49 @@ void find_rows_in_file2_same_with_file1( char *filename1,
 						myFile.WriteString(acess_excel2.GetCellString(file2_cur_row, file2_save_txt_cols[write_col]));
 						myFile.WriteString(col_flag);
 					}
-					
+                    
 					myFile.WriteString("\n");
+            	#endif
 					
+                    for (;write_col<file1_txt_cols_cnt;write_col++)
+                    {
+                        BOOLEAN is_str = acess_excel.GetCell_is_string(order_table[i], file1_save_txt_cols[write_col]);
+                        if (is_str)
+                        {
+                            short * data = acess_excel.GetCellunicode(order_table[i], file1_save_txt_cols[write_col]);
+                            fwrite(data, wcslen((const unsigned short *)data)*2, 1, fp2);
+                        }
+                        else
+                        {
+                            CString str = acess_excel.GetCellString(order_table[i], file1_save_txt_cols[write_col]);
+                            write_ascii_to_unicode_file(fp2,(char *)(LPCSTR)str);
+                        }
+                        
+                        write_ascii_to_unicode_file(fp2,col_flag);
+                    }
+                    
+                    for (write_col=0;write_col<file2_txt_cols_cnt;write_col++)
+                    {
+                        
+                        BOOLEAN is_str = acess_excel2.GetCell_is_string(file2_cur_row, file2_save_txt_cols[write_col]);
+                        if (is_str)
+                        {
+                            short * data = acess_excel.GetCellunicode(file2_cur_row, file2_save_txt_cols[write_col]);
+                            fwrite(data, wcslen((const unsigned short *)data)*2, 1, fp2);
+                        }
+                        else
+                        {
+                            CString str = acess_excel.GetCellString(file2_cur_row, file2_save_txt_cols[write_col]);
+                            write_ascii_to_unicode_file(fp2,(char *)(LPCSTR)str);
+                        }
+                        write_ascii_to_unicode_file(fp2,col_flag);
+                    }
+                
+                    fputs("\r",fp2);
+                    fputc(0,fp2);
+                    fputs("\n",fp2);
+                    fputc(0,fp2);
+                    
 	            	if (is_write_file3)
 	            	{
 						int file3_col = 1;
@@ -695,41 +817,188 @@ void find_rows_in_file2_same_with_file1( char *filename1,
 
 	            }
 	        }
+        #if 0
+            else
+            {
+                int write_col = 0;
+                for (;write_col<file1_txt_cols_cnt;write_col++)
+                {
+                    myFile.WriteString(acess_excel2.GetCellString(file2_cur_row, file1_save_txt_cols[write_col]));
+                    myFile.WriteString(col_flag);
+                }
+                
+                myFile.WriteString("\n");
+            }
+        #endif
 			
 	    }
 		
 	}
 
+	if (!is_only_mark)
+	{
+        fclose(fp2);
+	}
+    
 	if (is_write_file3)
 	{
     	acess_excel3.SaveasXSLFile(acess_excel3.GetOpenFileName());
 	}
 }
 
-void get_same_string_by_id(void)
+void find_rows_no_translate(const char *filename1, 
+								const char *save_file,
+								long file1_sheet_index,
+								long file1_start_row, 
+								long file1_col,
+								char *col_flag)
 {
-	excel1_compare_column = 1;
-	excel2_compare_column = 1;
-	#if 0
-	file1_save_txt_cols[10] = {0};
-	file2_save_txt_cols[10] = {0};
-	file1_save_excel_cols[10] = {0};
-	file2_save_excel_cols[10] = {0};
-	#endif
-	file1_txt_cols_cnt = 0;
-	file2_txt_cols_cnt = 0;
-	file1_excel_cols_cnt = 0;
-	file2_excel_cols_cnt = 0;
+	ASSERT(NULL != filename1);
+    acess_excel.ReleaseExcel();
+	acess_excel.InitExcel();
+    
+    acess_excel.OpenExcelFile(filename1);
+    acess_excel.LoadSheet(file1_sheet_index, TRUE);
+    
 
-	find_rows_in_file2_same_with_file1("D:\\excel24\\m0.xls","D:\\excel24\\m1.xls",NULL,"result.txt", 1,1,2, 2,TRUE,FALSE,NULL);
+    long file1_rows = acess_excel.GetRowCount();
+    
+    long file1_cur_row = file1_start_row;
+
+    FILE *fp2;
+    CStdioFile myFile;
+    uint32 i = 1;
+    
+    if (NULL == (fp2=fopen(save_file,"wb")))
+    {
+        printf("open file error!");
+        return;
+    }
+    
+    fputc(0xff,fp2);
+    fputc(0xfe,fp2);
+
+
+    for (;file1_cur_row<=file1_rows;file1_cur_row++)
+    {
+        CString str = acess_excel.GetCellString(file1_cur_row, file1_col);
+        if (0 == str.GetLength())
+        {
+				long write_col = 0;
+                for (;write_col<file1_txt_cols_cnt;write_col++)
+                {
+                    BOOLEAN is_str = acess_excel.GetCell_is_string(file1_cur_row, file1_save_txt_cols[write_col]);
+                    if (is_str)
+                    {
+                        short * data = acess_excel.GetCellunicode(file1_cur_row, file1_save_txt_cols[write_col]);
+                        fwrite(data, wcslen((const unsigned short *)data)*2, 1, fp2);
+                    }
+                    else
+                    {
+                        CString str = acess_excel.GetCellString(file1_cur_row, file1_save_txt_cols[write_col]);
+                        write_ascii_to_unicode_file(fp2,(char *)(LPCSTR)str);
+                    }
+                    
+                    write_ascii_to_unicode_file(fp2,col_flag);
+                }
+                
+            
+                fputs("\r",fp2);
+                fputc(0,fp2);
+                fputs("\n",fp2);
+                fputc(0,fp2);
+        }
+		
+    }
+		
+    fclose(fp2);
 }
 
-void get_string_by_id(void)
+int set_compare_cols(long file1_col, long file2_col)
 {
-	excel1_compare_column = 1;
-	excel2_compare_column = 1;
-	excel1_compare_column = 1;
-	excel2_compare_column = 1;
+	excel1_compare_column = file1_col;
+	excel2_compare_column = file2_col;
+
+    return 1;
+}
+
+int set_out_cols(const char *buf, long *cnt, long *cols)
+{
+    int len = strlen(buf);
+    int digit_len = 0;
+    const char *digit_buf;
+    int i = 0;
+
+	*cnt = 0;
+
+    if (NULL == buf)
+    {
+        return 1;
+    }
+    
+    while(i<len)
+    {
+        if (('0'<= buf[i] && buf[i] <= '9'))
+        {
+            if (0 == digit_len)
+            {
+                digit_buf = buf+i;
+            }
+            digit_len++;
+            i++;
+        }
+        else if (',' == buf[i])
+        {
+            if (0 < digit_len)
+            {
+                cols[*cnt] = atoi(digit_buf);
+                (*cnt)++;
+            }
+            
+            digit_len = 0;
+            i++;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    
+    if (0 < digit_len)
+    {
+        cols[*cnt] = atoi(digit_buf);
+        (*cnt)++;
+    }
+
+    return 1;
+}
+
+int set_out_txt_file1_cols(const char *buf)
+{
+    return set_out_cols(buf, &file1_txt_cols_cnt, file1_save_txt_cols);
+}
+
+int set_out_txt_file2_cols(const char *buf)
+{
+    return set_out_cols(buf, &file2_txt_cols_cnt, file2_save_txt_cols);
+}
+
+int set_out_excel_file1_cols(const char *buf)
+{
+    return set_out_cols(buf, &file1_excel_cols_cnt, file1_save_excel_cols);
+}
+
+int set_out_excel_file2_cols(const char *buf)
+{
+    return set_out_cols(buf, &file2_excel_cols_cnt, file2_save_excel_cols);
+}
+
+
+void get_string_by_id2(void)
+{
+	excel1_compare_column = 4;
+	excel2_compare_column = 4;
 	#if 0
 	file1_save_txt_cols[10] = {0};
 	file2_save_txt_cols[10] = {0};
@@ -739,16 +1008,83 @@ void get_string_by_id(void)
 	file1_txt_cols_cnt = 4;
 	file2_txt_cols_cnt = 0;
 	file1_excel_cols_cnt = 0;
-	file2_excel_cols_cnt = 0;
+	file2_excel_cols_cnt = 1;
 	
 	file1_save_txt_cols[0] = 1;
 	file1_save_txt_cols[1] = 2;
 	file1_save_txt_cols[2] = 3;
 	file1_save_txt_cols[3] = 4;
-
-	find_rows_in_file2_same_with_file1("D:\\excel24\\m0.xls","D:\\excel24\\m1.xls",NULL,"result.txt", 1,1,2, 2,FALSE,FALSE,">");
+	file1_save_txt_cols[4] = 5;
+    
+	file2_save_excel_cols[0] = 5;
+	file2_save_txt_cols[0] = 5;
+	file2_save_txt_cols[1] = 2;
+	file2_save_txt_cols[2] = 3;
+	file2_save_txt_cols[3] = 4;
+	file2_save_txt_cols[4] = 5;
+    
+    long file1_sheet = 1;
+    long file1_col   = 33;//30
+    long file1_start_row = 2;
+    long file2_start_row = 1;
+    BOOLEAN is_only_mark = FALSE;
+    BOOLEAN is_save_file3 = TRUE;
+    
+	find_rows_no_translate("D:\\excel24\\str_table1.xls",
+        "result.txt", 
+        file1_sheet,
+        file1_start_row, 
+        file1_col,
+        ">");
 }
 
+void get_string_by_id(void)
+{
+	excel1_compare_column = 4;
+	excel2_compare_column = 4;
+	#if 0
+	file1_save_txt_cols[10] = {0};
+	file2_save_txt_cols[10] = {0};
+	file1_save_excel_cols[10] = {0};
+	file2_save_excel_cols[10] = {0};
+	#endif
+	file1_txt_cols_cnt = 4;
+	file2_txt_cols_cnt = 0;
+	file1_excel_cols_cnt = 0;
+	file2_excel_cols_cnt = 1;
+	
+	file1_save_txt_cols[0] = 1;
+	file1_save_txt_cols[1] = 2;
+	file1_save_txt_cols[2] = 3;
+	file1_save_txt_cols[3] = 4;
+	file1_save_txt_cols[4] = 5;
+    
+	file2_save_excel_cols[0] = 5;
+	file2_save_txt_cols[0] = 5;
+	file2_save_txt_cols[1] = 2;
+	file2_save_txt_cols[2] = 3;
+	file2_save_txt_cols[3] = 4;
+	file2_save_txt_cols[4] = 5;
+    
+    long file1_sheet = 1;
+    long file2_sheet = 1;
+    long file1_start_row = 2;
+    long file2_start_row = 1;
+    BOOLEAN is_only_mark = FALSE;
+    BOOLEAN is_save_file3 = TRUE;
+    
+	find_rows_in_file2_same_with_file1("D:\\excel24\\str_table.xls",
+        "D:\\excel24\\mmm.xls",
+        NULL,
+        "result.txt", 
+        file1_sheet,
+        file2_sheet,
+        file1_start_row, 
+        file2_start_row,
+        is_only_mark,
+        is_save_file3,
+        ">");
+}
 
 UINT ThreadFun(LPVOID pParam)
 {  //线程要调用的函数
@@ -762,7 +1098,7 @@ void CExcel2Dlg::OnOK()
 	
 	//CDialog::OnOK();
 
-#ifdef ACCESS_EXCEL_SIMPLE
+#if 0//def ACCESS_EXCEL_SIMPLE
 	if (!OpenExcelBook("D:\\excel2\\str_table.xls"))
 	{
 		TRACE("Open xls file fail");
@@ -781,7 +1117,8 @@ void CExcel2Dlg::OnOK()
 	}
 #else
     //::AfxBeginThread(ThreadFun, NULL); 
-    get_string_by_id();
+    //get_string_by_id();
+    get_string_by_id2();
 
 #endif
 
@@ -1004,3 +1341,25 @@ int CExcel2Dlg::LastLineIndex()
 }
  
 
+
+void CExcel2Dlg::OnSelchangeTab1(NMHDR* pNMHDR, LRESULT* pResult) 
+{
+	// TODO: Add your control notification handler code here
+	int CurSel = m_tab.GetCurSel();
+	
+    switch(CurSel)
+    {
+	case 0:
+		m_para1.ShowWindow(true);
+		m_para2.ShowWindow(false);
+		break;
+	case 1:
+		m_para1.ShowWindow(false);
+		m_para2.ShowWindow(true);
+		break;
+	default:
+		;
+		
+		*pResult = 0;
+    }
+}

@@ -257,6 +257,38 @@ BOOL IllusionExcelFile::IsCellInt(long irow, long icolumn)
     return FALSE;
 }
 
+BOOLEAN IllusionExcelFile::GetCell_is_string(long irow, long icolumn)
+{
+   
+    COleVariant vResult ;
+    BOOLEAN is_string = FALSE;
+    
+    //字符串
+    if (already_preload_ == FALSE)
+    {
+        Range range;
+        range.AttachDispatch(excel_current_range_.GetItem (COleVariant((long)irow),COleVariant((long)icolumn)).pdispVal, true);
+        vResult =range.GetValue2();
+        range.ReleaseDispatch();
+    }
+    //如果数据依据预先加载了
+    else
+    {
+        long read_address[2];
+        VARIANT val;
+        read_address[0] = irow;
+        read_address[1] = icolumn;
+        ole_safe_array_.GetElement(read_address, &val);
+        vResult = val;
+    }
+
+    if(vResult.vt == VT_BSTR)
+    {
+        is_string = TRUE;
+    }
+
+    return is_string;
+}
 //
 CString IllusionExcelFile::GetCellString(long irow, long icolumn)
 {
@@ -310,6 +342,35 @@ CString IllusionExcelFile::GetCellString(long irow, long icolumn)
     {
         str="";
     }  
+
+    return str;
+}
+
+short* IllusionExcelFile::GetCellunicode(long irow, long icolumn)
+{
+   
+    COleVariant vResult ;
+    short * str= NULL;
+    //字符串
+    if (already_preload_ == FALSE)
+    {
+        Range range;
+        range.AttachDispatch(excel_current_range_.GetItem (COleVariant((long)irow),COleVariant((long)icolumn)).pdispVal, true);
+        vResult =range.GetValue2();
+        range.ReleaseDispatch();
+    }
+    //如果数据依据预先加载了
+    else
+    {
+        long read_address[2];
+        VARIANT val;
+        read_address[0] = irow;
+        read_address[1] = icolumn;
+        ole_safe_array_.GetElement(read_address, &val);
+        vResult = val;
+    }
+
+    str=(short *)vResult.bstrVal;
 
     return str;
 }
